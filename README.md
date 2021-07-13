@@ -43,7 +43,19 @@ $consumer->consume(50);
 * `php-7.1.3` или выше
 
 ## Установка
-Загрузите пакет, используя пакетный менеджер composer, либо вручную:
+Загрузите пакет, используя пакетный менеджер composer:
+
+composer.json:
+
+```json
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/proklung/bitrix.rabbitmq.module"
+        }
+    ]
+```
+
 
 ```bash
 $ composer require proklung/bitrix-rabbitmq-module
@@ -104,7 +116,9 @@ return [
                     'queue_options' => [
                         'name' => 'upload_picture',
                     ],
-                    'callback' => 'UploadPictureConsumer',
+                    // В оригинале тянулся сервис из битриксового сервис-локатора
+                    // Пока упростил - класс инстанцируется через new.
+                    'callback' => 'Proklung\RabbitMq\Consumers\UploadPictureConsumer',
                 ],
             ],
         ],
