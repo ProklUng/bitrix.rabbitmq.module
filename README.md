@@ -196,6 +196,7 @@ class UploadPictureConsumer implements ConsumerInterface
 * `bitrix-rabbitmq:purge`           Purge a consumer's queue
 * `bitrix-abbitmq:setup-fabric`     Sets up the Rabbit MQ fabric
 * `bitrix-rabbitmq:stdin-producer`  Executes a producer that reads data from STDIN
+* `bitrix-rabbitmq:rpc-server`      Start RPC server
 
 В папке `/install/bin` модуля лежит файл `rabbitmq`. При установке модуля система попробует скопировать его в директорию,
 `bin`, лежащую двумя уровнями выше `DOCUMENT_ROOT`. Если такой директории не существует, то сделано ничего не будет. Придется

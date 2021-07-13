@@ -26,7 +26,6 @@ define('NO_AGENT_STATISTIC', 'Y');
 define('NO_AGENT_CHECK', true);
 defined('PUBLIC_AJAX_MODE') || define('PUBLIC_AJAX_MODE', true);
 
-
 /** @noinspection PhpIncludeInspection */
 require_once $autoloadPath;
 
@@ -63,7 +62,10 @@ if ($bitrixStatus !== 200) {
 
 Loader::includeModule('proklung.rabbitmq');
 
-$commands = CommandsSetup::load(Services::getInstance());
+$services = new Services();
+$services->load();
+
+$commands = CommandsSetup::load($services->getContainer());
 
 $application = new ConsoleCommandConfigurator(
     new Application(),
