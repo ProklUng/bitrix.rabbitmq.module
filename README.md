@@ -7,11 +7,11 @@
 
 ## Отличия
 
-Выпилил (частично, пока не касается команд) битриксовый сервис-локатор в пользу отдельного симфонического контейнера. 
+Выпилил (частично, пока не касается команд) битриксовый сервис-локатор в пользу отдельного симфонического контейнера.
+
+Исправил некоторое количество ошибок. 
 
 # Оригинальное readme.MD с некоторыми корректировками
-
-# yngc0der.rabbitmq
 
 ## О проекте
 
@@ -43,7 +43,20 @@ $consumer->consume(50);
 * `php-7.1.3` или выше
 
 ## Установка
+
 Загрузите пакет, используя пакетный менеджер composer:
+
+composer.json основного проектаЖ
+
+```json
+  "extra": {
+    "installer-paths": {
+      "./bitrix/modules/{$name}/": ["type:bitrix-d7-module", "type:bitrix-module"],
+      "./bitrix/components/{$name}/": ["type:bitrix-d7-component", "type:bitrix-component"],
+      "./bitrix/templates/{$name}/": ["type:bitrix-d7-template", "type:bitrix-theme"]
+    }
+  }
+```
 
 composer.json:
 
@@ -56,12 +69,11 @@ composer.json:
     ]
 ```
 
-
 ```bash
 $ composer require proklung/bitrix-rabbitmq-module
 ```
 
-Установите модуль "proklung.rabbitmq" в административном интерфейсе сайта `bitrix/admin/partner_modules.php`
+Установите модуль `proklung.rabbitmq` в административном интерфейсе сайта `bitrix/admin/partner_modules.php`
 
 Добавьте следующий код в ваш `init.php`:
 
@@ -145,6 +157,7 @@ class UploadPictureConsumer implements ConsumerInterface
 ```
 
 ## Интеграция с CLI
+
 Если у вас установлен модуль [yngc0der.cli](https://github.com/yngc0der/bitrix-cli), вам будут доступны некоторые
 команды, которые упрощают работу:
 

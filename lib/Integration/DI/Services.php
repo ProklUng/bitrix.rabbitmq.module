@@ -199,7 +199,7 @@ class Services
                 return $instance;
             };
 
-            $createConnectorSymfony = function () use ($factoryName) {
+            $createConnector = function () use ($factoryName) {
                 return $this->containerBuilder->get($factoryName)->createConnection();
             };
 
@@ -210,7 +210,7 @@ class Services
 
             $this->containerBuilder->set(
                 $connectionName,
-                $createConnectorSymfony()
+                $createConnector()
             );
         }
     }
