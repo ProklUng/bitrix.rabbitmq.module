@@ -3,13 +3,15 @@
 ## Зачем?
 
 Оригинальный модуль заточен под битриксовый сервис-локатор, а он встречается только на версиях главного модуля больше,
-чем `20.5.400`. На моих проектах такой свежести нет, а функционал интересный. 
+чем `20.5.400`. На моих проектах такой свежести нет, а функционал интересный и полезный. 
 
 ## Отличия
 
 Выпилил (частично, пока не касается команд) битриксовый сервис-локатор в пользу отдельного симфонического контейнера.
 
-Исправил некоторое количество ошибок. 
+Исправил некоторое количество ошибок.
+
+Добавил к командам префикс `bitrix-`, чтобы избежать конфликта с командами оригинального бандла `RabbitMqBundle`. 
 
 # Оригинальное readme.MD с некоторыми корректировками
 
@@ -161,11 +163,11 @@ class UploadPictureConsumer implements ConsumerInterface
 Если у вас установлен модуль [yngc0der.cli](https://github.com/yngc0der/bitrix-cli), вам будут доступны некоторые
 команды, которые упрощают работу:
 
-* `rabbitmq:consumer`        Executes a consumer
-* `rabbitmq:delete`          Delete a consumer's queue
-* `rabbitmq:purge`           Purge a consumer's queue
-* `rabbitmq:setup-fabric`    Sets up the Rabbit MQ fabric
-* `rabbitmq:stdin-producer`  Executes a producer that reads data from STDIN
+* `bitrix-rabbitmq:consumer`        Executes a consumer
+* `bitrix-rabbitmq:delete`          Delete a consumer's queue
+* `bitrix-rabbitmq:purge`           Purge a consumer's queue
+* `bitrix-abbitmq:setup-fabric`     Sets up the Rabbit MQ fabric
+* `bitrix-rabbitmq:stdin-producer`  Executes a producer that reads data from STDIN
 
 ## Адаптировано к Bitrix
 - [x] Connection (Stream, Socket, Lazy, LazySocket)

@@ -7,8 +7,8 @@ namespace Proklung\RabbitMq\Integration\CLI;
 
 use Bitrix\Main\Event;
 use Bitrix\Main\EventResult;
-use Bitrix\Main\DI\ServiceLocator;
 use Proklung\RabbitMq\Command;
+use Proklung\RabbitMq\Integration\DI\Services;
 
 /**
  * Class Commands
@@ -18,7 +18,7 @@ class Commands
 {
     public static function onCommandsLoad(Event $event)
     {
-        $container = ServiceLocator::getInstance();
+        $container = Services::getInstance();
 
         $commands = [
             new Command\ConsumerCommand(),
