@@ -140,12 +140,14 @@ return [
                     'connection' => 'default',
                     'unserializer' => 'json_decode',
                     'lazy' => true,
-                    'direct_reply_to' => false
+                    'direct_reply_to' => false,
+                    'expect_serialized_response' => false
                 ],
             ],
             'rpc_servers' => [
                 'random_int' => [
                     'connection' => 'default',
+                    // Автоматом регистрируется сервисом. Без обработки зависимостей.
                     'callback' => 'Proklung\RabbitMq\Examples\RandomIntServer',
                     'qos_options' => [
                         'prefetch_size' => 0,
@@ -183,6 +185,23 @@ class UploadPictureConsumer implements ConsumerInterface
     public function execute(AMQPMessage $msg)
     {
         echo ' [x] Received ', $msg->body, "\n";
+    }
+}
+```
+
+Пример серверной части RPC сообщений (при опции клиента `expect_serialized_response` равной `false`):
+
+```php
+
+use PhpAmqpLib\Message\AMQPMessage;
+
+class RandomIntServer
+{
+    public function execute(AMQPMessage $request)
+    {
+        $params = json_decode($request->getBody(), true);
+        
+        return ['request_id' => mt_rand(1, 123)];
     }
 }
 ```
