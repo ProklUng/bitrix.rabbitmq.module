@@ -13,6 +13,7 @@ use Proklung\RabbitMq\RabbitMq\Binding;
 use Proklung\RabbitMQ\RabbitMq\DequeuerAwareInterface;
 use Proklung\RabbitMQ\RabbitMq\Producer;
 use Proklung\RabbitMq\Utils\BitrixSettingsDiAdapter;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 
@@ -114,6 +115,7 @@ class Services
         $this->loadProducers();
         $this->loadConsumers();
         $this->loadAnonConsumers();
+        $this->loadBatchConsumers();
         $this->loadRpcClients();
         $this->loadRpcServers();
 
@@ -494,6 +496,82 @@ class Services
             $this->container->setDefinition($name, $definition);
             $this->addDequeuerAwareCall($anon['callback'], $name);
         }
+    }
+
+    /**
+     * @return void
+     */
+    private function loadBatchConsumers() : void
+    {
+        foreach ($this->config['batch_consumers'] as $key => $consumer) {
+            $this->registerCallbackAsService($consumer['callback']);
+
+            $definition = new Definition('%rabbitmq.batch_consumer.class%');
+
+            if (!isset($consumer['exchange_options'])) {
+                $consumer['exchange_options'] = $this->getDefaultExchangeOptions();
+            }
+
+            $definition
+                ->setPublic(true)
+                ->addTag('rabbitmq.base_amqp')
+                ->addTag('rabbitmq.batch_consumer')
+                ->addMethodCall('setTimeoutWait', array($consumer['timeout_wait']))
+                ->addMethodCall('setPrefetchCount', array($consumer['qos_options']['prefetch_count']))
+                ->addMethodCall('setCallback', array(array(new Reference($consumer['callback']), 'batchExecute')))
+                ->addMethodCall('setExchangeOptions', array($this->normalizeArgumentKeys($consumer['exchange_options'])))
+                ->addMethodCall('setQueueOptions', array($this->normalizeArgumentKeys($consumer['queue_options'])))
+                ->addMethodCall('setQosOptions', array(
+                    $consumer['qos_options']['prefetch_size'],
+                    $consumer['qos_options']['prefetch_count'],
+                    $consumer['qos_options']['global']
+                ))
+            ;
+
+            if (isset($consumer['idle_timeout_exit_code'])) {
+                $definition->addMethodCall('setIdleTimeoutExitCode', array($consumer['idle_timeout_exit_code']));
+            }
+
+            if (isset($consumer['idle_timeout'])) {
+                $definition->addMethodCall('setIdleTimeout', array($consumer['idle_timeout']));
+            }
+
+            if (isset($consumer['graceful_max_execution'])) {
+                $definition->addMethodCall(
+                    'setGracefulMaxExecutionDateTimeFromSecondsInTheFuture',
+                    array($consumer['graceful_max_execution']['timeout'])
+                );
+            }
+
+            if (!$consumer['auto_setup_fabric']) {
+                $definition->addMethodCall('disableAutoSetupFabric');
+            }
+
+            if ($consumer['keep_alive']) {
+                $definition->addMethodCall('keepAlive');
+            }
+
+            $this->injectConnection($definition, $consumer['connection']);
+
+            if ($consumer['enable_logger']) {
+                $this->injectLogger($definition);
+            }
+
+            $this->container->setDefinition(sprintf('rabbitmq.%s_batch', $key), $definition);
+        }
+    }
+
+    /**
+     * @param Definition $definition
+     *
+     * @return void
+     */
+    private function injectLogger(Definition $definition)
+    {
+        $definition->addTag('monolog.logger', array(
+            'channel' => 'phpamqplib'
+        ));
+        $definition->addMethodCall('setLogger', array(new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE)));
     }
 
     /**
