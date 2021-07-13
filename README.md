@@ -17,6 +17,8 @@
 
 Адаптирована работа с `RPC_Server` и `RPC_Clients`. 
 
+Адаптирована работа с `Anon consumer`.
+
 # Оригинальное readme.MD с некоторыми корректировками
 
 ## О проекте
@@ -265,7 +267,7 @@ class RandomIntServer
 - [ ] Multi-consumer
 - [ ] Dynamic consumer
 - [ ] Batch consumer
-- [ ] Anon consumer
+- [x] Anon consumer
 - [x] Rpc client
 - [x] Rpc server
 - [ ] Logged channel

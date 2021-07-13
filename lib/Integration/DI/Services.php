@@ -38,9 +38,9 @@ class Services
     private $services;
 
     /**
-     * @var ContainerBuilder $containerBuilder Контейнер.
+     * @var ContainerBuilder $container Контейнер.
      */
-    private $containerBuilder;
+    private $container;
 
     /**
      * @var boolean $booted Загружена ли уже конструкция.
@@ -56,12 +56,12 @@ class Services
         $this->parameters = Configuration::getInstance('proklung.rabbitmq')->get('parameters') ?? [];
         $this->services = Configuration::getInstance('proklung.rabbitmq')->get('services') ?? [];
 
-        $this->containerBuilder = new ContainerBuilder();
+        $this->container = new ContainerBuilder();
         $adapter = new BitrixSettingsDiAdapter();
 
-        $adapter->importParameters($this->containerBuilder, $this->config);
-        $adapter->importParameters($this->containerBuilder, $this->parameters);
-        $adapter->importServices($this->containerBuilder, $this->services);
+        $adapter->importParameters($this->container, $this->config);
+        $adapter->importParameters($this->container, $this->parameters);
+        $adapter->importServices($this->container, $this->services);
     }
 
     /**
@@ -113,12 +113,13 @@ class Services
         $this->loadBindings();
         $this->loadProducers();
         $this->loadConsumers();
+        $this->loadAnonConsumers();
         $this->loadRpcClients();
         $this->loadRpcServers();
 
         $this->loadPartsHolder();
 
-        $this->containerBuilder->compile(false);
+        $this->container->compile(false);
     }
 
     /**
@@ -128,7 +129,7 @@ class Services
      */
     public function getContainer(): ContainerBuilder
     {
-        return $this->containerBuilder;
+        return $this->container;
     }
 
     /**
@@ -147,18 +148,18 @@ class Services
                 ksort($binding);
                 $key = md5(json_encode($binding));
 
-                $part = $this->containerBuilder->get("rabbitmq.binding.{$key}");
+                $part = $this->container->get("rabbitmq.binding.{$key}");
                 $instance->addPart('rabbitmq.binding', $part);
             }
 
             foreach ($this->config['producers'] as $key => $producer) {
-                $part = $this->containerBuilder->get("rabbitmq.{$key}_producer");
+                $part = $this->container->get("rabbitmq.{$key}_producer");
                 $instance->addPart('rabbitmq.base_amqp', $part);
                 $instance->addPart('rabbitmq.producer', $part);
             }
 
             foreach ($this->config['consumers'] as $key => $consumer) {
-                $part = $this->containerBuilder->get("rabbitmq.{$key}_consumer");
+                $part = $this->container->get("rabbitmq.{$key}_consumer");
                 $instance->addPart('rabbitmq.base_amqp', $part);
                 $instance->addPart('rabbitmq.consumer', $part);
             }
@@ -166,7 +167,7 @@ class Services
             return $instance;
         };
 
-        $this->containerBuilder->set('rabbitmq.parts_holder', $holder());
+        $this->container->set('rabbitmq.parts_holder', $holder());
     }
 
     /**
@@ -191,7 +192,7 @@ class Services
 
                 if (isset($connection['connection_parameters_provider'])) {
                     /** @var ConnectionParametersProviderInterface $parametersProvider */
-                    $parametersProvider = $this->containerBuilder->get($connection['connection_parameters_provider']);
+                    $parametersProvider = $this->container->get($connection['connection_parameters_provider']);
                 }
 
                 /** @var AMQPConnectionFactory $instance */
@@ -205,15 +206,15 @@ class Services
             };
 
             $createConnector = function () use ($factoryName) {
-                return $this->containerBuilder->get($factoryName)->createConnection();
+                return $this->container->get($factoryName)->createConnection();
             };
 
-            $this->containerBuilder->set(
+            $this->container->set(
                 $factoryName,
                 $constructor()
             );
 
-            $this->containerBuilder->set(
+            $this->container->set(
                 $connectionName,
                 $createConnector()
             );
@@ -243,7 +244,7 @@ class Services
                 $connectionName = "rabbitmq.connection.{$binding['connection']}";
 
                 /** @var Binding $instance */
-                $instance = new $className($this->containerBuilder->get($connectionName));
+                $instance = new $className($this->container->get($connectionName));
 
                 $instance->setArguments($binding['arguments']);
                 $instance->setDestination($binding['destination']);
@@ -255,7 +256,7 @@ class Services
                 return $instance;
             };
 
-            $this->containerBuilder->set(
+            $this->container->set(
                 "rabbitmq.binding.{$key}",
                 $binding()
             );
@@ -291,7 +292,7 @@ class Services
                     $connectionName = "rabbitmq.connection.{$producer['connection']}";
 
                     /** @var Producer $instance */
-                    $instance = new $className($this->containerBuilder->get($connectionName));
+                    $instance = new $className($this->container->get($connectionName));
 
                     $instance->setExchangeOptions($producer['exchange_options']);
                     $instance->setQueueOptions($producer['queue_options']);
@@ -301,20 +302,20 @@ class Services
                     }
 
                     if (isset($producer['enable_logger']) && $producer['enable_logger']) {
-                        $instance->setLogger($this->containerBuilder->get($producer['logger']));
+                        $instance->setLogger($this->container->get($producer['logger']));
                     }
 
                     return $instance;
                 };
 
-                $this->containerBuilder->set(
+                $this->container->set(
                     $producerServiceName,
                     $producers()
                 );
             }
         } else {
             foreach ($this->config['producers'] as $key => $producer) {
-                $this->containerBuilder->register(
+                $this->container->register(
                     "rabbitmq.{$key}_producer",
                     $this->parameters['rabbitmq.fallback.class']
                 )->setPublic(true);
@@ -344,7 +345,7 @@ class Services
                 $connectionName = "rabbitmq.connection.{$consumer['connection']}";
 
                 /** @var Consumer $instance */
-                $instance = new $className($this->containerBuilder->get($connectionName));
+                $instance = new $className($this->container->get($connectionName));
 
                 $instance->setExchangeOptions($consumer['exchange_options']);
                 $instance->setQueueOptions($consumer['queue_options']);
@@ -385,7 +386,7 @@ class Services
                 }
 
                 if (isset($consumer['enable_logger']) && $consumer['enable_logger']) {
-                    $instance->setLogger($this->containerBuilder->get($consumer['logger']));
+                    $instance->setLogger($this->container->get($consumer['logger']));
                 }
 
                 if ($this->isDequeverAwareInterface(get_class($callback))) {
@@ -396,7 +397,7 @@ class Services
                 return $instance;
             };
 
-            $this->containerBuilder->set(
+            $this->container->set(
                 "rabbitmq.{$key}_consumer",
                 $consumers()
             );
@@ -425,7 +426,7 @@ class Services
             }
             $definition->setPublic(true);
 
-            $this->containerBuilder->setDefinition(sprintf('rabbitmq.%s_rpc', $key), $definition);
+            $this->container->setDefinition(sprintf('rabbitmq.%s_rpc', $key), $definition);
         }
     }
 
@@ -435,10 +436,7 @@ class Services
     private function loadRpcServers() : void
     {
         foreach ($this->config['rpc_servers'] as $key => $server) {
-            // Регистрация callback как сервиса.
-            $defCallBack = new Definition($server['callback']);
-            $defCallBack->setPublic(true);
-            $this->containerBuilder->setDefinition($server['callback'], $defCallBack);
+            $this->registerCallbackAsService($server['callback']);
 
             $definition = new Definition('%rabbitmq.rpc_server.class%');
             $definition
@@ -471,22 +469,119 @@ class Services
                 $definition->addMethodCall('setSerializer', array($server['serializer']));
             }
 
-            $this->containerBuilder->setDefinition(sprintf('rabbitmq.%s_server', $key), $definition);
+            $this->container->setDefinition(sprintf('rabbitmq.%s_server', $key), $definition);
         }
     }
 
-    private function injectLoggedChannel(Definition $definition, $name, $connectionName)
+    /**
+     * @return void
+     */
+    private function loadAnonConsumers() : void
     {
-        $id = sprintf('rabbitmq.channel.%s', $name);
-        $channel = new Definition('%rabbitmq.logged.channel.class%');
-        $channel
-            ->setPublic(false)
-            ->addTag('rabbitmq.logged_channel');
-        $this->injectConnection($channel, $connectionName);
+        foreach ($this->config['anon_consumers'] as $key => $anon) {
+            $this->registerCallbackAsService($anon['callback']);
 
-        $this->containerBuilder->setDefinition($id, $channel);
+            $definition = new Definition('%rabbitmq.anon_consumer.class%');
+            $definition
+                ->setPublic(true)
+                ->addTag('rabbitmq.base_amqp')
+                ->addTag('rabbitmq.anon_consumer')
+                ->addMethodCall('setExchangeOptions', array($this->normalizeArgumentKeys($anon['exchange_options'])))
+                ->addMethodCall('setCallback', array(array(new Reference($anon['callback']), 'execute')));
+            $this->injectConnection($definition, $anon['connection']);
 
-        $definition->addArgument(new Reference($id));
+            $name = sprintf('rabbitmq.%s_anon', $key);
+            $this->container->setDefinition($name, $definition);
+            $this->addDequeuerAwareCall($anon['callback'], $name);
+        }
+    }
+
+    /**
+     * Регистрация класса сервисом.
+     *
+     * @param string $class Класс.
+     *
+     * @return void
+     */
+    private function registerCallbackAsService(string $class)
+    {
+        // Регистрация class как сервиса.
+        $defCallBack = new Definition($class);
+        $defCallBack->setPublic(true);
+        $this->container->setDefinition($class, $defCallBack);
+    }
+
+    /**
+     * Symfony 2 converts '-' to '_' when defined in the configuration. This leads to problems when using x-ha-policy
+     * parameter. So we revert the change for right configurations.
+     *
+     * @param array $config
+     *
+     * @return array
+     */
+    private function normalizeArgumentKeys(array $config)
+    {
+        if (isset($config['arguments'])) {
+            $arguments = $config['arguments'];
+            // support for old configuration
+            if (is_string($arguments)) {
+                $arguments = $this->argumentsStringAsArray($arguments);
+            }
+
+            $newArguments = array();
+            foreach ($arguments as $key => $value) {
+                if (strstr($key, '_')) {
+                    $key = str_replace('_', '-', $key);
+                }
+                $newArguments[$key] = $value;
+            }
+            $config['arguments'] = $newArguments;
+        }
+        return $config;
+    }
+
+    /**
+     * Support for arguments provided as string. Support for old configuration files.
+     *
+     * @deprecated
+     * @param string $arguments
+     * @return array
+     */
+    private function argumentsStringAsArray($arguments)
+    {
+        $argumentsArray = array();
+
+        $argumentPairs = explode(',', $arguments);
+        foreach ($argumentPairs as $argument) {
+            $argumentPair = explode(':', $argument);
+            $type = 'S';
+            if (isset($argumentPair[2])) {
+                $type = $argumentPair[2];
+            }
+            $argumentsArray[$argumentPair[0]] = array($type, $argumentPair[1]);
+        }
+
+        return $argumentsArray;
+    }
+
+    /**
+     * Add proper dequeuer aware call.
+     *
+     * @param string $callback
+     * @param string $name
+     *
+     * @return void
+     */
+    private function addDequeuerAwareCall($callback, $name) : void
+    {
+        if (!$this->container->has($callback)) {
+            return;
+        }
+
+        $callbackDefinition = $this->container->findDefinition($callback);
+        if ($this->isDequeverAwareInterface($callbackDefinition->getClass())) {
+            $callbackDefinition->addMethodCall('setDequeuer', array(new Reference($name)));
+        }
     }
 
     private function injectConnection(Definition $definition, $connectionName)
