@@ -116,6 +116,11 @@ class Services
         $this->containerBuilder->compile(false);
     }
 
+    public function setupCommands() : void
+    {
+
+    }
+
     /**
      * Экземпляр контейнера.
      *

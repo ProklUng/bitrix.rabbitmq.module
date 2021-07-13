@@ -1,25 +1,23 @@
 <?php
-/**
- * @author RG. <rg.archuser@gmail.com>
- */
 
 namespace Proklung\RabbitMq\Integration\CLI;
 
-use Bitrix\Main\Event;
-use Bitrix\Main\EventResult;
 use Proklung\RabbitMq\Command;
-use Proklung\RabbitMq\Integration\DI\Services;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Class Commands
+ * Class CommandsSetup
  * @package Proklung\RabbitMq\CLI
  */
-class Commands
+class CommandsSetup
 {
-    public static function onCommandsLoad(Event $event)
+    /**
+     * @param ContainerInterface $container
+     *
+     * @return array
+     */
+    public static function load(ContainerInterface $container)
     {
-        $container = Services::getInstance();
-
         $commands = [
             new Command\ConsumerCommand(),
             new Command\DeleteCommand(),
@@ -36,6 +34,6 @@ class Commands
             $command->setContainer($container);
         }
 
-        return new EventResult(EventResult::SUCCESS, $commands, 'proklung.rabbitmq');
+        return $commands;
     }
 }
