@@ -1,0 +1,37 @@
+{
+  "name": "proklung/bitrix.rabbitmq.module",
+  "description": "Поддержка RabbitMQ в Битриксе",
+  "type": "bitrix-d7-module",
+  "keywords": [
+    "bitrix",
+    "bitrix-module",
+    "bitrix-cms",
+    "bitrix-d7"
+  ],
+  "homepage": "https://github.com/ProklUng/bitrix.rabbitmq.module",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Gavrilov Fedy",
+      "email": "fedor.gavrilov.75@mail.ru"
+    }
+  ],
+
+  "support": {
+    "issues": "https://github.com/ProklUng/bitrix.rabbitmq.module/issues",
+    "source": "https://github.com/ProklUng/bitrix.rabbitmq.module"
+  },
+  "extra": {
+    "installer-name": "prokl.rabbitmq"
+  },
+  "require": {
+    "php": ">=7.1 || ^8.0",
+    "symfony/dependency-injection": "^4.0 || ^5.0",
+    "composer/installers": "~1",
+    "php-amqplib/php-amqplib": "^2.12.1 || ^3",
+    "psr/log": "^1.1.3"
+  },
+  "require-dev": {
+    "icanhazstring/composer-unused": "^0.7.5"
+  }
+}

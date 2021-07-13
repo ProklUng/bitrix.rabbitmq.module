@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<psalm
+    errorLevel="3"
+    resolveFromConfigFile="true"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+    allowStringToStandInForClass="true"
+    allowCoercionFromStringToClassConst="true"
+    findUnusedPsalmSuppress="true"
+    skipChecksOnUnresolvableIncludes="true"
+>
+    <plugins>
+        <pluginClass class="Psalm\SymfonyPsalmPlugin\Plugin"/>
+        <pluginClass class="Psalm\MockeryPlugin\Plugin"/>
+    </plugins>
+    <projectFiles>
+        <directory name="/"/>
+        <ignoreFiles>
+            <directory name="vendor"/>
+        </ignoreFiles>
+    </projectFiles>
+
+    <extraFiles>
+        <directory name="vendor/sheerockoff/bitrix-ci/files/bitrix"/>
+    </extraFiles>
+    <issueHandlers>
+        <InvalidCatch>
+            <errorLevel type="suppress">
+                <referencedClass name="Psr\SimpleCache\InvalidArgumentException"/>
+                <referencedClass name="Psr\Cache\InvalidArgumentException"/>
+            </errorLevel>
+        </InvalidCatch>
+        <InvalidThrow>
+            <errorLevel type="suppress">
+                <referencedClass name="Psr\SimpleCache\InvalidArgumentException"/>
+                <referencedClass name="Psr\Cache\InvalidArgumentException"/>
+            </errorLevel>
+        </InvalidThrow>
+        <PropertyNotSetInConstructor>
+            <errorLevel type="suppress">
+                <directory name="/"/>
+            </errorLevel>
+        </PropertyNotSetInConstructor>
+        <InvalidGlobal>
+            <errorLevel type="suppress">
+                <directory name="/"/>
+            </errorLevel>
+        </InvalidGlobal>
+        <InvalidThrow>
+            <errorLevel type="suppress">
+                <directory name="/"/>
+            </errorLevel>
+        </InvalidThrow>
+        <UndefinedMagicMethod>
+            <errorLevel type="suppress">
+                <directory name="/"/>
+            </errorLevel>
+        </UndefinedMagicMethod>
+      </issueHandlers>
+</psalm>
