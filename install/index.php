@@ -22,7 +22,7 @@ class proklung_rabbitmq extends CModule
         $arModuleVersion = [];
         include __DIR__ . '/version.php';
 
-        $this->MODULE_ID = 'prokl.rabbitmq';
+        $this->MODULE_ID = 'proklung.rabbitmq';
         $this->MODULE_VERSION = $arModuleVersion['VERSION'];
         $this->MODULE_VERSION_DATE = $arModuleVersion['VERSION_DATE'];
         $this->MODULE_NAME = Loc::getMessage('YC_RMQ_MODULE_NAME');

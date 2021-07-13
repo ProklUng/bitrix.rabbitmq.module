@@ -22,7 +22,7 @@
     "source": "https://github.com/ProklUng/bitrix.rabbitmq.module"
   },
   "extra": {
-    "installer-name": "prokl.rabbitmq"
+    "installer-name": "proklung.rabbitmq"
   },
   "require": {
     "php": ">=7.1 || ^8.0",
