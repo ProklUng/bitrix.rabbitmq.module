@@ -4,6 +4,7 @@ namespace Proklung\RabbitMq\Integration\DI;
 
 use Bitrix\Main\Config\Configuration;
 use Exception;
+use Proklung\RabbitMQ\RabbitMq\Consumer;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Proklung\RabbitMQ\Provider\ConnectionParametersProviderInterface;
 use Proklung\RabbitMq\RabbitMq\AMQPConnectionFactory;
@@ -12,6 +13,8 @@ use Proklung\RabbitMq\RabbitMq\Binding;
 use Proklung\RabbitMQ\RabbitMq\DequeuerAwareInterface;
 use Proklung\RabbitMQ\RabbitMq\Producer;
 use Proklung\RabbitMq\Utils\BitrixSettingsDiAdapter;
+use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Reference;
 
 /**
  * Class Services
@@ -110,6 +113,8 @@ class Services
         $this->loadBindings();
         $this->loadProducers();
         $this->loadConsumers();
+        $this->loadRpcClients();
+        $this->loadRpcServers();
 
         $this->loadPartsHolder();
 
@@ -257,6 +262,10 @@ class Services
         }
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     private function loadProducers() : void
     {
         if (!isset($this->config['sandbox']) || $this->config['sandbox'] === false) {
@@ -313,6 +322,10 @@ class Services
         }
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     private function loadConsumers() : void
     {
         foreach ($this->config['consumers'] as $key => $consumer) {
@@ -330,7 +343,7 @@ class Services
                 $className = $this->parameters['rabbitmq.consumer.class'];
                 $connectionName = "rabbitmq.connection.{$consumer['connection']}";
 
-                /** @var \Proklung\RabbitMQ\RabbitMq\Consumer $instance */
+                /** @var Consumer $instance */
                 $instance = new $className($this->containerBuilder->get($connectionName));
 
                 $instance->setExchangeOptions($consumer['exchange_options']);
@@ -388,6 +401,97 @@ class Services
                 $consumers()
             );
         }
+    }
+
+    /**
+     * @return void
+     */
+    private function loadRpcClients() : void
+    {
+        foreach ($this->config['rpc_clients'] as $key => $client) {
+            $definition = new Definition('%rabbitmq.rpc_client.class%');
+            $definition->setLazy($client['lazy']);
+            $definition
+                ->addTag('rabbitmq.rpc_client')
+                ->addMethodCall('initClient', array($client['expect_serialized_response']));
+            $this->injectConnection($definition, $client['connection']);
+
+            if (array_key_exists('unserializer', $client)) {
+                $definition->addMethodCall('setUnserializer', array($client['unserializer']));
+            }
+
+            if (array_key_exists('direct_reply_to', $client)) {
+                $definition->addMethodCall('setDirectReplyTo', array($client['direct_reply_to']));
+            }
+            $definition->setPublic(true);
+
+            $this->containerBuilder->setDefinition(sprintf('rabbitmq.%s_rpc', $key), $definition);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    private function loadRpcServers() : void
+    {
+        foreach ($this->config['rpc_servers'] as $key => $server) {
+            // Регистрация callback как сервиса.
+            $defCallBack = new Definition($server['callback']);
+            $defCallBack->setPublic(true);
+            $this->containerBuilder->setDefinition($server['callback'], $defCallBack);
+
+            $definition = new Definition('%rabbitmq.rpc_server.class%');
+            $definition
+                ->setPublic(true)
+                ->addTag('rabbitmq.base_amqp')
+                ->addTag('rabbitmq.rpc_server')
+                ->addMethodCall('initServer', array($key))
+                ->addMethodCall('setCallback', array(
+                        array(new Reference($server['callback']), 'execute'))
+                );
+            $this->injectConnection($definition, $server['connection']);
+
+            if (array_key_exists('qos_options', $server)) {
+                $definition->addMethodCall('setQosOptions', array(
+                    $server['qos_options']['prefetch_size'],
+                    $server['qos_options']['prefetch_count'],
+                    $server['qos_options']['global']
+                ));
+            }
+
+            if (array_key_exists('exchange_options', $server)) {
+                $definition->addMethodCall('setExchangeOptions', array($server['exchange_options']));
+            }
+
+            if (array_key_exists('queue_options', $server)) {
+                $definition->addMethodCall('setQueueOptions', array($server['queue_options']));
+            }
+
+            if (array_key_exists('serializer', $server)) {
+                $definition->addMethodCall('setSerializer', array($server['serializer']));
+            }
+
+            $this->containerBuilder->setDefinition(sprintf('rabbitmq.%s_server', $key), $definition);
+        }
+    }
+
+    private function injectLoggedChannel(Definition $definition, $name, $connectionName)
+    {
+        $id = sprintf('rabbitmq.channel.%s', $name);
+        $channel = new Definition('%rabbitmq.logged.channel.class%');
+        $channel
+            ->setPublic(false)
+            ->addTag('rabbitmq.logged_channel');
+        $this->injectConnection($channel, $connectionName);
+
+        $this->containerBuilder->setDefinition($id, $channel);
+
+        $definition->addArgument(new Reference($id));
+    }
+
+    private function injectConnection(Definition $definition, $connectionName)
+    {
+        $definition->addArgument(new Reference(sprintf('rabbitmq.connection.%s', $connectionName)));
     }
 
     private function isDequeverAwareInterface(string $class): bool

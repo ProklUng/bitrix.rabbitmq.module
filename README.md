@@ -135,6 +135,35 @@ return [
                     'callback' => 'Proklung\RabbitMq\Consumers\UploadPictureConsumer',
                 ],
             ],
+            'rpc_clients' => [
+                'integer_store' => [
+                    'connection' => 'default',
+                    'unserializer' => 'json_decode',
+                    'lazy' => true,
+                    'direct_reply_to' => false
+                ],
+            ],
+            'rpc_servers' => [
+                'random_int' => [
+                    'connection' => 'default',
+                    'callback' => 'Proklung\RabbitMq\Examples\RandomIntServer',
+                    'qos_options' => [
+                        'prefetch_size' => 0,
+                        'prefetch_count' => 1,
+                        'global' => false
+                    ],
+                    'exchange_options' => [
+                        'name' => 'random_int',
+                        'type' => 'topic',
+                    ],
+                    'queue_options' => [
+                        'name' => 'random_int_queue',
+                        'durable' => false,
+                        'auto_delete' => true,
+                    ],
+                    'serializer' => 'json_encode',
+                ],
+            ],
         ],
         'readonly' => false,
     ],
@@ -196,8 +225,8 @@ class UploadPictureConsumer implements ConsumerInterface
 - [ ] Dynamic consumer
 - [ ] Batch consumer
 - [ ] Anon consumer
-- [ ] Rpc client
-- [ ] Rpc server
+- [x] Rpc client (в разработке)
+- [x] Rpc server (в разработке)
 - [ ] Logged channel
 
 ## Credits

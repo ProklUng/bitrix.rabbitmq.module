@@ -24,6 +24,7 @@ class CommandsSetup
             new Command\PurgeConsumerCommand(),
             new Command\SetupFabricCommand(),
             new Command\StdInProducerCommand(),
+            new Command\RpcServerCommand(),
         ];
 
         foreach ($commands as $command) {
