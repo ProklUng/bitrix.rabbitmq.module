@@ -7,7 +7,7 @@
 
 ## Отличия
 
-Выпилил (частично, пока не касается команд) битриксовый сервис-локатор в пользу отдельного симфонического контейнера.
+Выпилил битриксовый сервис-локатор в пользу отдельного симфонического контейнера.
 
 Исправил некоторое количество ошибок.
 
@@ -160,14 +160,27 @@ class UploadPictureConsumer implements ConsumerInterface
 
 ## Интеграция с CLI
 
-Если у вас установлен модуль [yngc0der.cli](https://github.com/yngc0der/bitrix-cli), вам будут доступны некоторые
-команды, которые упрощают работу:
+Доступны некоторые команды, которые упрощают работу:
 
 * `bitrix-rabbitmq:consumer`        Executes a consumer
 * `bitrix-rabbitmq:delete`          Delete a consumer's queue
 * `bitrix-rabbitmq:purge`           Purge a consumer's queue
 * `bitrix-abbitmq:setup-fabric`     Sets up the Rabbit MQ fabric
 * `bitrix-rabbitmq:stdin-producer`  Executes a producer that reads data from STDIN
+
+В папке `/install/bin` модуля лежит файл `rabbitmq`. После установки модуля нужно скопировать его в `php/bin`.
+
+Запуск:
+
+```bash
+   php bin/rabbitmq bitrix-abbitmq:setup-fabric
+```
+
+Все доступные команды:
+
+```bash
+   php bin/rabbitmq
+```
 
 ## Адаптировано к Bitrix
 - [x] Connection (Stream, Socket, Lazy, LazySocket)

@@ -8,7 +8,6 @@ use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Context;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\EventManager;
 
 Loc::loadMessages(__FILE__);
 
@@ -92,22 +91,6 @@ class proklung_rabbitmq extends CModule
             Loader::clearModuleCache($this->MODULE_ID);
             ModuleManager::unRegisterModule($this->MODULE_ID);
         }
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function InstallEvents()
-    {
-        parent::InstallEvents();
-
-        EventManager::getInstance()->registerEventHandler(
-            'yngc0der.cli',
-            'OnCommandsLoad',
-            $this->MODULE_ID,
-            '\\Proklung\\RabbitMq\\Integration\\CLI\\Commands',
-            'onCommandsLoad'
-        );
     }
 
     /**
