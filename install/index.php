@@ -94,6 +94,39 @@ class proklung_rabbitmq extends CModule
     }
 
     /**
+     * @inheritDoc
+     */
+    public function InstallFiles()
+    {
+        parent::InstallFiles();
+
+        $rootDir = Application::getDocumentRoot().'/';
+        $binFile = '/rabbitmq';
+
+        if (is_dir($rootDir . '../../bin')) {
+            $src = __DIR__. '/bin' . $binFile;
+            copy($src, $rootDir . '../../bin' . $binFile);
+        }
+
+        return true;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function UnInstallFiles()
+    {
+        parent::UnInstallFiles();
+
+        $rootDir = Application::getDocumentRoot().'/';
+        $binFile = '/rabbitmq';
+
+        @unlink($rootDir . '../../bin' . $binFile);
+
+        return true;
+    }
+
+    /**
      * @return boolean
      */
     public function checkRequirements(): bool

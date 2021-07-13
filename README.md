@@ -168,7 +168,9 @@ class UploadPictureConsumer implements ConsumerInterface
 * `bitrix-abbitmq:setup-fabric`     Sets up the Rabbit MQ fabric
 * `bitrix-rabbitmq:stdin-producer`  Executes a producer that reads data from STDIN
 
-В папке `/install/bin` модуля лежит файл `rabbitmq`. После установки модуля нужно скопировать его в `php/bin`.
+В папке `/install/bin` модуля лежит файл `rabbitmq`. При установке модуля система попробует скопировать его в директорию,
+`bin`, лежащую двумя уровнями выше `DOCUMENT_ROOT`. Если такой директории не существует, то сделано ничего не будет. Придется
+создать папку руками и скопировать туда файл вручную. 
 
 Запуск:
 
