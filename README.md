@@ -206,6 +206,23 @@ class RandomIntServer
 }
 ```
 
+Отправка запроса и получение ответа от RPC:
+
+1) Запустить сервер командой `php bin/rabbitmq bitrix-rabbitmq:rpc-server random_int`
+2) Код:
+
+```php
+    use Proklung\RabbitMq\Integration\DI\Services;
+    use Proklung\RabbitMq\RabbitMq\RpcClient;
+
+    /** @var RpcClient $client */
+    $client = Services::boot()->get('rabbitmq.integer_store_rpc');
+
+    $client->addRequest(serialize(array('min' => 0, 'max' => 10)), 'random_int', 'request_id');
+    $replies = $client->getReplies();
+    // Обработать $replies
+```
+
 ## Интеграция с CLI
 
 Доступны некоторые команды, которые упрощают работу:
