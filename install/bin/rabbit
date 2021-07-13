@@ -1,0 +1,74 @@
+#!/usr/bin/env php
+<?php
+
+use Bitrix\Main\DB\ConnectionException;
+use Bitrix\Main\Loader;
+use Proklung\RabbitMq\Integration\CLI\CommandsSetup;
+use Proklung\RabbitMq\Integration\CLI\ConsoleCommandConfigurator;
+use Proklung\RabbitMq\Integration\DI\Services;
+use Symfony\Component\Console\Application;
+
+@set_time_limit(0);
+
+$_SERVER['DOCUMENT_ROOT'] = __DIR__. DIRECTORY_SEPARATOR . '..';
+$documentRoot = $GLOBALS['DOCUMENT_ROOT'] = $_SERVER['DOCUMENT_ROOT'];
+
+$autoloadPath = $_SERVER['DOCUMENT_ROOT'] . '/vendor/autoload.php';
+
+define('BITRIX_CLI', true);
+define('NO_KEEP_STATISTIC', true);
+define('NOT_CHECK_PERMISSIONS', true);
+define('LANGUAGE_ID', 'pa');
+define('LOG_FILENAME', 'php://stderr');
+define('BX_NO_ACCELERATOR_RESET', true);
+define('STOP_STATISTICS', true);
+define('NO_AGENT_STATISTIC', 'Y');
+define('NO_AGENT_CHECK', true);
+defined('PUBLIC_AJAX_MODE') || define('PUBLIC_AJAX_MODE', true);
+
+
+/** @noinspection PhpIncludeInspection */
+require_once $autoloadPath;
+
+try {
+
+    global
+    $DB, $DBType, $DBHost, $DBLogin, $DBPassword,
+    $DBName, $DBDebug, $DBDebugToFile, $APPLICATION, $USER, $DBSQLServerType;
+
+    require_once $documentRoot . '/bitrix/modules/main/include/prolog_before.php';
+
+    if (defined('B_PROLOG_INCLUDED') && B_PROLOG_INCLUDED === true) {
+        $bitrixStatus = 200;
+    }
+
+    // Альтернативный способ вывода ошибок типа "DB query error.":
+    $GLOBALS['DB']->debug = true;
+
+    $app = \Bitrix\Main\Application::getInstance();
+    $con = $app->getConnection();
+    $DB->db_Conn = $con->getResource();
+
+    if (in_array(\PHP_SAPI, ['cli', 'phpdbg', 'embed'], true) === false) {
+        echo 'Warning: The console should be invoked via the CLI version of PHP, not the '
+            . \PHP_SAPI . ' SAPI' . \PHP_EOL;
+    }
+} catch (ConnectionException $e) {
+    $bitrixStatus = 404;
+}
+
+if ($bitrixStatus !== 200) {
+    exit('Bitrix not loaded.');
+}
+
+Loader::includeModule('proklung.rabbitmq');
+
+$commands = CommandsSetup::load(Services::getInstance());
+
+$application = new ConsoleCommandConfigurator(
+    new Application(),
+    ...$commands
+);
+
+$application->init();
+$application->run();
