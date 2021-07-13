@@ -226,8 +226,8 @@ class UploadPictureConsumer implements ConsumerInterface
 - [ ] Dynamic consumer
 - [ ] Batch consumer
 - [ ] Anon consumer
-- [x] Rpc client (в разработке)
-- [x] Rpc server (в разработке)
+- [x] Rpc client
+- [x] Rpc server
 - [ ] Logged channel
 
 ## Credits
