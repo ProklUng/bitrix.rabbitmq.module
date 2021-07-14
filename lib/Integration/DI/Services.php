@@ -8,10 +8,8 @@ use Exception;
 use Proklung\RabbitMQ\RabbitMq\Consumer;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Proklung\RabbitMq\RabbitMq\AmqpPartsHolder;
 use Proklung\RabbitMq\RabbitMq\Binding;
 use Proklung\RabbitMQ\RabbitMq\DequeuerAwareInterface;
-use Proklung\RabbitMQ\RabbitMq\Producer;
 use Proklung\RabbitMq\Utils\BitrixSettingsDiAdapter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -182,36 +180,24 @@ class Services
      */
     private function loadPartsHolder() : void
     {
-        $holder = function () {
-            $className = $this->parameters['rabbitmq.parts_holder.class'];
+        if ($this->config['sandbox']) {
+            return;
+        }
+        foreach ($this->config['bindings'] as $binding) {
+            ksort($binding);
+            $definition = new Definition($binding['class']);
+            $definition->addTag('rabbitmq.binding');
+            $definition->addMethodCall('setArguments', array($binding['arguments']));
+            $definition->addMethodCall('setDestination', array($binding['destination']));
+            $definition->addMethodCall('setDestinationIsExchange', array($binding['destination_is_exchange']));
+            $definition->addMethodCall('setExchange', array($binding['exchange']));
+            $definition->addMethodCall('isNowait', array($binding['nowait']));
+            $definition->addMethodCall('setRoutingKey', array($binding['routing_key']));
+            $this->injectConnection($definition, $binding['connection']);
+            $key = md5(json_encode($binding));
 
-            /** @var AmqpPartsHolder $instance */
-            $instance = new $className();
-
-            foreach ($this->config['bindings'] as $binding) {
-                ksort($binding);
-                $key = md5(json_encode($binding));
-
-                $part = $this->container->get("rabbitmq.binding.{$key}");
-                $instance->addPart('rabbitmq.binding', $part);
-            }
-
-            foreach ($this->config['producers'] as $key => $producer) {
-                $part = $this->container->get("rabbitmq.{$key}_producer");
-                $instance->addPart('rabbitmq.base_amqp', $part);
-                $instance->addPart('rabbitmq.producer', $part);
-            }
-
-            foreach ($this->config['consumers'] as $key => $consumer) {
-                $part = $this->container->get("rabbitmq.{$key}_consumer");
-                $instance->addPart('rabbitmq.base_amqp', $part);
-                $instance->addPart('rabbitmq.consumer', $part);
-            }
-
-            return $instance;
-        };
-
-        $this->container->set('rabbitmq.parts_holder', $holder());
+            $this->container->setDefinition(sprintf('rabbitmq.binding.%s', $key), $definition);
+        }
     }
 
     /**
@@ -302,56 +288,43 @@ class Services
      */
     private function loadProducers() : void
     {
-        if (!isset($this->config['sandbox']) || $this->config['sandbox'] === false) {
+        if ($this->config['sandbox'] == false) {
             foreach ($this->config['producers'] as $key => $producer) {
-                $producerServiceName = "rabbitmq.{$key}_producer";
-
-                if (!isset($producer['class'])) {
-                    $producer['class'] = $this->parameters['rabbitmq.producer.class'];
-                }
-
-                // this producer doesn't define an exchange -> using AMQP Default
+                $definition = new Definition($producer['class'] ?? $this->container->getParameter('rabbitmq.producer.class'));
+                $definition->setPublic(true);
+                $definition->addTag('rabbitmq.base_amqp');
+                $definition->addTag('rabbitmq.producer');
+                //this producer doesn't define an exchange -> using AMQP Default
                 if (!isset($producer['exchange_options'])) {
                     $producer['exchange_options'] = $this->getDefaultExchangeOptions();
                 }
-
-                // this producer doesn't define a queue -> using AMQP Default
+                $definition->addMethodCall('setExchangeOptions', array($this->normalizeArgumentKeys($producer['exchange_options'])));
+                //this producer doesn't define a queue -> using AMQP Default
                 if (!isset($producer['queue_options'])) {
                     $producer['queue_options'] = $this->getDefaultQueueOptions();
                 }
+                $definition->addMethodCall('setQueueOptions', array($producer['queue_options']));
+                $this->injectConnection($definition, $producer['connection']);
 
-                $producers = function () use ($producer) {
-                    $className = $producer['class'];
-                    $connectionName = "rabbitmq.connection.{$producer['connection']}";
+                if (!$producer['auto_setup_fabric']) {
+                    $definition->addMethodCall('disableAutoSetupFabric');
+                }
 
-                    /** @var Producer $instance */
-                    $instance = new $className($this->container->get($connectionName));
+                if ($producer['enable_logger']) {
+                    $this->injectLogger($definition);
+                }
 
-                    $instance->setExchangeOptions($producer['exchange_options']);
-                    $instance->setQueueOptions($producer['queue_options']);
+                $producerServiceName = sprintf('rabbitmq.%s_producer', $key);
 
-                    if (isset($producer['auto_setup_fabric']) && !$producer['auto_setup_fabric']) {
-                        $instance->disableAutoSetupFabric();
-                    }
-
-                    if (isset($producer['enable_logger']) && $producer['enable_logger']) {
-                        $instance->setLogger($this->container->get($producer['logger']));
-                    }
-
-                    return $instance;
-                };
-
-                $this->container->set(
-                    $producerServiceName,
-                    $producers()
-                );
+                $this->container->setDefinition($producerServiceName, $definition);
+                if (null !== $producer['service_alias']) {
+                    $this->container->setAlias($producer['service_alias'], $producerServiceName);
+                }
             }
         } else {
             foreach ($this->config['producers'] as $key => $producer) {
-                $this->container->register(
-                    "rabbitmq.{$key}_producer",
-                    $this->parameters['rabbitmq.fallback.class']
-                )->setPublic(true);
+                $definition = new Definition('%rabbitmq.fallback.class%');
+                $this->container->setDefinition(sprintf('rabbitmq.%s_producer', $key), $definition);
             }
         }
     }
