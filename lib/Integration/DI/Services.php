@@ -6,9 +6,8 @@ use Bitrix\Main\Config\Configuration;
 use Closure;
 use Exception;
 use Proklung\RabbitMQ\RabbitMq\Consumer;
+use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Proklung\RabbitMQ\Provider\ConnectionParametersProviderInterface;
-use Proklung\RabbitMq\RabbitMq\AMQPConnectionFactory;
 use Proklung\RabbitMq\RabbitMq\AmqpPartsHolder;
 use Proklung\RabbitMq\RabbitMq\Binding;
 use Proklung\RabbitMQ\RabbitMq\DequeuerAwareInterface;
@@ -87,10 +86,10 @@ class Services
     /**
      * Загрузка и инициализация контейнера.
      *
-     * @return ContainerBuilder
+     * @return Container
      * @throws Exception
      */
-    public static function boot() : ContainerBuilder
+    public static function boot() : Container
     {
         $self = new static();
 
@@ -105,10 +104,10 @@ class Services
     /**
      * Alias boot для читаемости.
      *
-     * @return ContainerBuilder
+     * @return Container
      * @throws Exception
      */
-    public static function getInstance() : ContainerBuilder
+    public static function getInstance() : Container
     {
         return static::boot();
     }
@@ -170,9 +169,9 @@ class Services
     /**
      * Экземпляр контейнера.
      *
-     * @return ContainerBuilder
+     * @return Container
      */
-    public function getContainer(): ContainerBuilder
+    public function getContainer(): Container
     {
         return $this->container;
     }
@@ -223,46 +222,35 @@ class Services
     {
         foreach ($this->config['connections'] as $key => $connection) {
             $connectionSuffix = $connection['use_socket'] ? 'socket_connection.class' : 'connection.class';
-            $classParam = $connection['lazy']
-                ? 'rabbitmq.lazy.' . $connectionSuffix
-                : 'rabbitmq.' . $connectionSuffix;
+            $classParam =
+                $connection['lazy']
+                    ? '%rabbitmq.lazy.'.$connectionSuffix.'%'
+                    : '%rabbitmq.'.$connectionSuffix.'%';
 
-            $factoryName = "rabbitmq.connection_factory.{$key}";
-            $connectionName = "rabbitmq.connection.{$key}";
+            $definition = new Definition('%rabbitmq.connection_factory.class%', array(
+                $classParam, $connection,
+            ));
+            if (isset($connection['connection_parameters_provider'])) {
+                $definition->addArgument(new Reference($connection['connection_parameters_provider']));
+                unset($connection['connection_parameters_provider']);
+            }
+            $definition->setPublic(true);
+            $factoryName = sprintf('rabbitmq.connection_factory.%s', $key);
+            $this->container->setDefinition($factoryName, $definition);
 
-            $constructor = function () use ($classParam, $connection) {
-                $className = $this->parameters['rabbitmq.connection_factory.class'];
+            $definition = new Definition($classParam);
+            if (method_exists($definition, 'setFactory')) {
+                // to be inlined in services.xml when dependency on Symfony DependencyInjection is bumped to 2.6
+                $definition->setFactory(array(new Reference($factoryName), 'createConnection'));
+            } else {
+                // to be removed when dependency on Symfony DependencyInjection is bumped to 2.6
+                $definition->setFactoryService($factoryName);
+                $definition->setFactoryMethod('createConnection');
+            }
+            $definition->addTag('rabbitmq.connection');
+            $definition->setPublic(true);
 
-                $parametersProvider = null;
-
-                if (isset($connection['connection_parameters_provider'])) {
-                    /** @var ConnectionParametersProviderInterface $parametersProvider */
-                    $parametersProvider = $this->container->get($connection['connection_parameters_provider']);
-                }
-
-                /** @var AMQPConnectionFactory $instance */
-                $instance = new $className(
-                    $this->parameters[$classParam],
-                    $connection,
-                    $parametersProvider
-                );
-
-                return $instance;
-            };
-
-            $createConnector = function () use ($factoryName) {
-                return $this->container->get($factoryName)->createConnection();
-            };
-
-            $this->container->set(
-                $factoryName,
-                $constructor()
-            );
-
-            $this->container->set(
-                $connectionName,
-                $createConnector()
-            );
+            $this->container->setDefinition(sprintf('rabbitmq.connection.%s', $key), $definition);
         }
     }
 
