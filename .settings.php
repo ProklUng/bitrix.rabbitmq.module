@@ -23,6 +23,10 @@ return [
             'rabbitmq.logged.channel.class' => '',
             'rabbitmq.parts_holder.class' => 'Proklung\RabbitMq\RabbitMq\AmqpPartsHolder',
             'rabbitmq.fallback.class' => 'Proklung\RabbitMq\RabbitMq\Fallback',
+            // Внутренние параметры модуля
+            'cache_path' => '/bitrix/cache/s1/proklung.rabbitmq', // Путь к закешированному контейнеру
+            'compile_container_envs' => ['dev', 'prod'], // Окружения при которых компилировать контейнер
+            'container.dumper.inline_factories' => false, // Дампить контейнер как одиночные файлы
         ],
         'readonly' => false,
     ],

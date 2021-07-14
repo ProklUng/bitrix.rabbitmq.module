@@ -3,6 +3,7 @@
 namespace Proklung\RabbitMq\Integration\DI;
 
 use Bitrix\Main\Config\Configuration;
+use Closure;
 use Exception;
 use Proklung\RabbitMQ\RabbitMq\Consumer;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -44,18 +45,36 @@ class Services
     private $container;
 
     /**
+     * @var string $environment
+     */
+    private $environment;
+
+    /**
      * @var boolean $booted Загружена ли уже конструкция.
      */
     private static $booted = false;
+
+    /**
+     * @var boolean $debug Режим отладки.
+     */
+    private $debug;
 
     /**
      * Services constructor.
      */
     public function __construct()
     {
+        $this->debug = (bool)$_ENV['DEBUG'] ?? true;
+        $this->environment = $this->debug ? 'dev' : 'prod';
+
         $this->config = Configuration::getInstance()->get('rabbitmq') ?? [];
         $this->parameters = Configuration::getInstance('proklung.rabbitmq')->get('parameters') ?? [];
         $this->services = Configuration::getInstance('proklung.rabbitmq')->get('services') ?? [];
+
+        // Инициализация параметров контейнера.
+        $this->parameters['cache_path'] = $this->parameters['cache_path'] ?? '/bitrix/cache/proklung.rabbitmq';
+        $this->parameters['container.dumper.inline_factories'] = $this->parameters['container.dumper.inline_factories'] ?? false;
+        $this->parameters['compile_container_envs'] = (array)$this->parameters['compile_container_envs'];
 
         $this->container = new ContainerBuilder();
         $adapter = new BitrixSettingsDiAdapter();
@@ -109,6 +128,30 @@ class Services
      * @throws Exception
      */
     public function load() : void
+    {
+        $compilerContainer = new CompilerContainer();
+
+        // Кэшировать контейнер?
+        if (!in_array($this->environment, $this->parameters['compile_container_envs'], true)) {
+            $this->initContainer();
+            return;
+        }
+
+        $this->container = $compilerContainer->cacheContainer(
+            $this->container,
+            $_SERVER['DOCUMENT_ROOT'] . $this->parameters['cache_path'],
+            'container.php',
+            $this->environment,
+            $this->debug,
+            Closure::fromCallable([$this, 'initContainer'])
+        );
+    }
+
+    /**
+     * @return void
+     * @throws Exception
+     */
+    public function initContainer() : void
     {
         $this->loadConnections();
         $this->loadBindings();
