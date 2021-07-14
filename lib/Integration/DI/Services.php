@@ -5,11 +5,9 @@ namespace Proklung\RabbitMq\Integration\DI;
 use Bitrix\Main\Config\Configuration;
 use Closure;
 use Exception;
-use Proklung\RabbitMQ\RabbitMq\Consumer;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Proklung\RabbitMq\RabbitMq\Binding;
-use Proklung\RabbitMQ\RabbitMq\DequeuerAwareInterface;
 use Proklung\RabbitMq\Utils\BitrixSettingsDiAdapter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -45,11 +43,6 @@ class Services
      * @var string $environment
      */
     private $environment;
-
-    /**
-     * @var boolean $booted Загружена ли уже конструкция.
-     */
-    private static $booted = false;
 
     /**
      * @var boolean $debug Режим отладки.
@@ -91,10 +84,7 @@ class Services
     {
         $self = new static();
 
-        if (!static::$booted) {
-            $self->load();
-            static::setBoot(true);
-        }
+        $self->load();
 
         return $self->getContainer();
     }
@@ -108,16 +98,6 @@ class Services
     public static function getInstance() : Container
     {
         return static::boot();
-    }
-
-    /**
-     * @param boolean $booted
-     *
-     * @return void
-     */
-    public static function setBoot(bool $booted) : void
-    {
-        static::$booted = $booted;
     }
 
     /**
