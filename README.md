@@ -158,8 +158,7 @@ return [
                     'queue_options' => [
                         'name' => 'upload_picture',
                     ],
-                    // В оригинале тянулся сервис из битриксового сервис-локатора
-                    // Пока упростил - класс инстанцируется через new.
+                    // Автоматом регистрируется сервисом. Без обработки зависимостей.
                     'callback' => 'Proklung\RabbitMq\Consumers\UploadPictureConsumer',
                 ],
             ],
