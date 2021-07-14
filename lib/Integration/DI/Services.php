@@ -336,77 +336,64 @@ class Services
     private function loadConsumers() : void
     {
         foreach ($this->config['consumers'] as $key => $consumer) {
-            // this consumer doesn't define an exchange -> using AMQP Default
+            $this->registerCallbackAsService($consumer['callback']);
+
+            $definition = new Definition('%rabbitmq.consumer.class%');
+            $definition->setPublic(true);
+            $definition->addTag('rabbitmq.base_amqp');
+            $definition->addTag('rabbitmq.consumer');
+            //this consumer doesn't define an exchange -> using AMQP Default
             if (!isset($consumer['exchange_options'])) {
                 $consumer['exchange_options'] = $this->getDefaultExchangeOptions();
             }
-
-            // this consumer doesn't define a queue -> using AMQP Default
+            $definition->addMethodCall('setExchangeOptions', array($this->normalizeArgumentKeys($consumer['exchange_options'])));
+            //this consumer doesn't define a queue -> using AMQP Default
             if (!isset($consumer['queue_options'])) {
                 $consumer['queue_options'] = $this->getDefaultQueueOptions();
             }
+            $definition->addMethodCall('setQueueOptions', array($this->normalizeArgumentKeys($consumer['queue_options'])));
+            $definition->addMethodCall('setCallback', array(array(new Reference($consumer['callback']), 'execute')));
 
-            $consumers = function () use ($consumer) {
-                $className = $this->parameters['rabbitmq.consumer.class'];
-                $connectionName = "rabbitmq.connection.{$consumer['connection']}";
+            if (array_key_exists('qos_options', $consumer)) {
+                $definition->addMethodCall('setQosOptions', array(
+                    $consumer['qos_options']['prefetch_size'],
+                    $consumer['qos_options']['prefetch_count'],
+                    $consumer['qos_options']['global']
+                ));
+            }
 
-                /** @var Consumer $instance */
-                $instance = new $className($this->container->get($connectionName));
+            if (isset($consumer['idle_timeout'])) {
+                $definition->addMethodCall('setIdleTimeout', array($consumer['idle_timeout']));
+            }
+            if (isset($consumer['idle_timeout_exit_code'])) {
+                $definition->addMethodCall('setIdleTimeoutExitCode', array($consumer['idle_timeout_exit_code']));
+            }
+            if (isset($consumer['timeout_wait'])) {
+                $definition->addMethodCall('setTimeoutWait', array($consumer['timeout_wait']));
+            }
+            if (isset($consumer['graceful_max_execution'])) {
+                $definition->addMethodCall(
+                    'setGracefulMaxExecutionDateTimeFromSecondsInTheFuture',
+                    array($consumer['graceful_max_execution']['timeout'])
+                );
+                $definition->addMethodCall(
+                    'setGracefulMaxExecutionTimeoutExitCode',
+                    array($consumer['graceful_max_execution']['exit_code'])
+                );
+            }
+            if (!$consumer['auto_setup_fabric']) {
+                $definition->addMethodCall('disableAutoSetupFabric');
+            }
 
-                $instance->setExchangeOptions($consumer['exchange_options']);
-                $instance->setQueueOptions($consumer['queue_options']);
+            $this->injectConnection($definition, $consumer['connection']);
 
-                /** @var object $callback */
-                // $callback = $this->container->get($consumer['callback']);
-                $callback = new $consumer['callback'];
+            if ($consumer['enable_logger']) {
+                $this->injectLogger($definition);
+            }
 
-                $instance->setCallback([$callback, 'execute']);
-
-                if (array_key_exists('qos_options', $consumer)) {
-                    $instance->setQosOptions(
-                        $consumer['qos_options']['prefetch_size'],
-                        $consumer['qos_options']['prefetch_count'],
-                        $consumer['qos_options']['global']
-                    );
-                }
-
-                if (isset($consumer['idle_timeout'])) {
-                    $instance->setIdleTimeout($consumer['idle_timeout']);
-                }
-
-                if (isset($consumer['idle_timeout_exit_code'])) {
-                    $instance->setIdleTimeoutExitCode($consumer['idle_timeout_exit_code']);
-                }
-
-                if (isset($consumer['graceful_max_execution'])) {
-                    $instance->setGracefulMaxExecutionDateTimeFromSecondsInTheFuture(
-                        $consumer['graceful_max_execution']['timeout']
-                    );
-                    $instance->setGracefulMaxExecutionTimeoutExitCode(
-                        $consumer['graceful_max_execution']['exit_code']
-                    );
-                }
-
-                if (isset($consumer['auto_setup_fabric']) && !$consumer['auto_setup_fabric']) {
-                    $instance->disableAutoSetupFabric();
-                }
-
-                if (isset($consumer['enable_logger']) && $consumer['enable_logger']) {
-                    $instance->setLogger($this->container->get($consumer['logger']));
-                }
-
-                if ($this->isDequeverAwareInterface(get_class($callback))) {
-                    /** @var DequeuerAwareInterface $callback */
-                    $callback->setDequeuer($instance);
-                }
-
-                return $instance;
-            };
-
-            $this->container->set(
-                "rabbitmq.{$key}_consumer",
-                $consumers()
-            );
+            $name = sprintf('rabbitmq.%s_consumer', $key);
+            $this->container->setDefinition($name, $definition);
+            $this->addDequeuerAwareCall($consumer['callback'], $name);
         }
     }
 
