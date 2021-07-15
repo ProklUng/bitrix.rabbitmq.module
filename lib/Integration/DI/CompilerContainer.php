@@ -3,6 +3,7 @@
 namespace Proklung\RabbitMq\Integration\DI;
 
 use InvalidArgumentException;
+use Proklung\RabbitMq\Integration\DI\Resource\FileBitrixSettingsResource;
 use Symfony\Bridge\ProxyManager\LazyProxy\PhpDumper\ProxyDumper;
 use Symfony\Component\Config\ConfigCache;
 use Symfony\Component\DependencyInjection\Container;
@@ -13,12 +14,85 @@ use Throwable;
 
 /**
  * Class CompilerContainer
- * @package Proklung\RabbitMq\Integration\DI
+ * @package Proklung\Redis\DI
  *
  * @since 14.07.2021
+ *
+ * @internal Файлы .meta -> .gitignore.
  */
 class CompilerContainer
 {
+    /**
+     * @var string $projectRoot DOCUMENT_ROOT.
+     */
+    private $projectRoot;
+
+    /**
+     * CompilerContainer constructor.
+     *
+     * @param string $projectRoot DOCUMENT_ROOT.
+     */
+    public function __construct(string $projectRoot)
+    {
+        $this->projectRoot = $projectRoot;
+    }
+
+    /**
+     * Свежий основной конфиг Битрикса или нет.
+     *
+     * @param string $configFile Конфигурационный файл.
+     *
+     * @return boolean
+     */
+    public function isConfigFresh(string $configFile = '/bitrix/.settings.php') : bool
+    {
+        $meta = $configFile . '.meta';
+
+        // Не существует мета-файл = конфиг потенциально не свежий.
+        if (!@file_exists($this->projectRoot . $meta)) {
+            return false;
+        }
+
+        $content = file_get_contents($this->projectRoot . $meta);
+
+        /** @var FileBitrixSettingsResource $checker */
+        $checker = unserialize($content);
+        // Кривизна в мета-файле = конфиг потенциально не свежий.
+        if ($checker === false) {
+            return false;
+        }
+
+        $timestamp = filemtime($this->projectRoot . $configFile);
+
+        return $checker->isFresh($timestamp);
+    }
+
+    /**
+     * Записать мета-информацию на основной конфиг битрикса.
+     *
+     * @param string $configFile Конфиг.
+     *
+     * @return void
+     */
+    public function createConfigMeta(string $configFile = '/bitrix/.settings.php') : void
+    {
+        $checker = new FileBitrixSettingsResource($this->projectRoot . $configFile);
+
+        @file_put_contents($this->projectRoot . $configFile . '.meta', serialize($checker));
+    }
+
+    /**
+     * Удалить дамп контейнера.
+     *
+     * @param string $cacheDirectory Директория, где лежит дамп контейнера.
+     *
+     * @return void
+     */
+    public function deleteDumpContainer(string $cacheDirectory) : void
+    {
+        $this->rrmdir($cacheDirectory);
+    }
+
     /**
      * @param ContainerBuilder $container            Контейнер.
      * @param string           $cacheDirectory       Директория кэша.
@@ -46,7 +120,15 @@ class CompilerContainer
         // Класс скомпилированного контейнера.
         $classCompiledContainerName = $this->getContainerClass($environment, $debug) . md5($filename);
 
-        if (!$containerConfigCache->isFresh()) {
+        $hasContainerFresh = $containerConfigCache->isFresh();
+
+        // Если /bitrix/.settings.php изменился - пересобрать дамп контейнера.
+        if (!$this->isConfigFresh('/bitrix/.settings.php')) {
+            $this->createConfigMeta('/bitrix/.settings.php');
+            $hasContainerFresh = false;
+        }
+
+        if (!$hasContainerFresh) {
             // Загрузить, инициализировать и скомпилировать контейнер.
             $newContainer = $initializerContainer();
 
@@ -99,7 +181,7 @@ class CompilerContainer
     /**
      * Если надо создать директорию для компилированного контейнера.
      *
-     * @param string $dir
+     * @param string $dir Директория.
      *
      * @return void
      */
@@ -115,8 +197,8 @@ class CompilerContainer
     /**
      * Gets the container class.
      *
-     * @param string  $env
-     * @param boolean $debug
+     * @param string  $env   Окружение.
+     * @param boolean $debug Режим отладки.
      *
      * @return string The container class.
      */
@@ -195,5 +277,29 @@ class CompilerContainer
             $content, // @phpstan-ignore-line
             $container->getResources()
         );
+    }
+
+    /**
+     * Рекурсивно удалить папки и файлы в них.
+     *
+     * @param string $dir Директория.
+     *
+     * @return void
+     */
+    private function rrmdir(string $dir) : void
+    {
+        if (is_dir($dir)) {
+            $objects = scandir($dir);
+            foreach ($objects as $object) {
+                if ($object !== '.' && $object !== '..') {
+                    if (is_dir($dir.DIRECTORY_SEPARATOR.$object) && !is_link($dir.'/'.$object)) {
+                        $this->rrmdir($dir.DIRECTORY_SEPARATOR.$object);
+                    } else {
+                        unlink($dir.DIRECTORY_SEPARATOR.$object);
+                    }
+                }
+            }
+            rmdir($dir);
+        }
     }
 }
