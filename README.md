@@ -88,7 +88,11 @@ composer.json основного проекта:
         {
             "type": "git",
             "url": "https://github.com/proklung/bitrix.rabbitmq.module"
-        }
+        },
+    {
+      "type": "git",
+      "url": "https://github.com/proklung/bitrix.containerable.boilerplate"
+    }
     ]
   }
 ```
