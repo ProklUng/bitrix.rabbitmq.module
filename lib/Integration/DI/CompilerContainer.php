@@ -122,10 +122,13 @@ class CompilerContainer
 
         $hasContainerFresh = $containerConfigCache->isFresh();
 
-        // Если /bitrix/.settings.php изменился - пересобрать дамп контейнера.
-        if (!$this->isConfigFresh('/bitrix/.settings.php')) {
-            $this->createConfigMeta('/bitrix/.settings.php');
-            $hasContainerFresh = false;
+        $configsBag = ['/bitrix/.settings.php', '/bitrix/.settings_extra.php'];
+        foreach ($configsBag as $configFile) {
+            // Если конфиг-файл изменился - пересобрать дамп контейнера.
+            if (file_exists($this->projectRoot . $configFile) && !$this->isConfigFresh($configFile)) {
+                $this->createConfigMeta($configFile);
+                $hasContainerFresh = false;
+            }
         }
 
         if (!$hasContainerFresh) {
