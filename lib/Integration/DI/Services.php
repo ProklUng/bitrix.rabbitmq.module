@@ -37,7 +37,7 @@ class Services
     /**
      * @var ContainerBuilder $container Контейнер.
      */
-    private $container;
+    private static $container;
 
     /**
      * @var string $environment
@@ -65,13 +65,6 @@ class Services
         $this->parameters['cache_path'] = $this->parameters['cache_path'] ?? '/bitrix/cache/proklung.rabbitmq';
         $this->parameters['container.dumper.inline_factories'] = $this->parameters['container.dumper.inline_factories'] ?? false;
         $this->parameters['compile_container_envs'] = (array)$this->parameters['compile_container_envs'];
-
-        $this->container = new ContainerBuilder();
-        $adapter = new BitrixSettingsDiAdapter();
-
-        $adapter->importParameters($this->container, $this->config);
-        $adapter->importParameters($this->container, $this->parameters);
-        $adapter->importServices($this->container, $this->services);
     }
 
     /**
@@ -106,6 +99,11 @@ class Services
      */
     public function load() : void
     {
+        if (static::$container !== null) {
+            return;
+        }
+
+        $this->createContainer();
         $compilerContainer = new CompilerContainer();
 
         // Кэшировать контейнер?
@@ -114,8 +112,8 @@ class Services
             return;
         }
 
-        $this->container = $compilerContainer->cacheContainer(
-            $this->container,
+        static::$container = $compilerContainer->cacheContainer(
+            static::$container,
             $_SERVER['DOCUMENT_ROOT'] . $this->parameters['cache_path'],
             'container.php',
             $this->environment,
@@ -141,7 +139,7 @@ class Services
 
         $this->loadPartsHolder();
 
-        $this->container->compile(false);
+        static::$container->compile(false);
     }
 
     /**
@@ -151,7 +149,22 @@ class Services
      */
     public function getContainer(): Container
     {
-        return $this->container;
+        return static::$container;
+    }
+
+    /**
+     * Создать пустой экземпляр контейнера.
+     *
+     * @return void
+     */
+    private function createContainer() : void
+    {
+        static::$container = new ContainerBuilder();
+        $adapter = new BitrixSettingsDiAdapter();
+
+        $adapter->importParameters(static::$container, $this->config);
+        $adapter->importParameters(static::$container, $this->parameters);
+        $adapter->importServices(static::$container, $this->services);
     }
 
     /**
@@ -176,7 +189,7 @@ class Services
             $this->injectConnection($definition, $binding['connection']);
             $key = md5(json_encode($binding));
 
-            $this->container->setDefinition(sprintf('rabbitmq.binding.%s', $key), $definition);
+            static::$container->setDefinition(sprintf('rabbitmq.binding.%s', $key), $definition);
         }
     }
 
@@ -202,7 +215,7 @@ class Services
             }
             $definition->setPublic(true);
             $factoryName = sprintf('rabbitmq.connection_factory.%s', $key);
-            $this->container->setDefinition($factoryName, $definition);
+            static::$container->setDefinition($factoryName, $definition);
 
             $definition = new Definition($classParam);
             if (method_exists($definition, 'setFactory')) {
@@ -216,7 +229,7 @@ class Services
             $definition->addTag('rabbitmq.connection');
             $definition->setPublic(true);
 
-            $this->container->setDefinition(sprintf('rabbitmq.connection.%s', $key), $definition);
+            static::$container->setDefinition(sprintf('rabbitmq.connection.%s', $key), $definition);
         }
     }
 
@@ -243,7 +256,7 @@ class Services
                 $connectionName = "rabbitmq.connection.{$binding['connection']}";
 
                 /** @var Binding $instance */
-                $instance = new $className($this->container->get($connectionName));
+                $instance = new $className(static::$container->get($connectionName));
 
                 $instance->setArguments($binding['arguments']);
                 $instance->setDestination($binding['destination']);
@@ -255,7 +268,7 @@ class Services
                 return $instance;
             };
 
-            $this->container->set(
+            static::$container->set(
                 "rabbitmq.binding.{$key}",
                 $binding()
             );
@@ -270,7 +283,7 @@ class Services
     {
         if ($this->config['sandbox'] == false) {
             foreach ($this->config['producers'] as $key => $producer) {
-                $definition = new Definition($producer['class'] ?? $this->container->getParameter('rabbitmq.producer.class'));
+                $definition = new Definition($producer['class'] ?? static::$container->getParameter('rabbitmq.producer.class'));
                 $definition->setPublic(true);
                 $definition->addTag('rabbitmq.base_amqp');
                 $definition->addTag('rabbitmq.producer');
@@ -296,15 +309,15 @@ class Services
 
                 $producerServiceName = sprintf('rabbitmq.%s_producer', $key);
 
-                $this->container->setDefinition($producerServiceName, $definition);
+                static::$container->setDefinition($producerServiceName, $definition);
                 if (null !== $producer['service_alias']) {
-                    $this->container->setAlias($producer['service_alias'], $producerServiceName);
+                    static::$container->setAlias($producer['service_alias'], $producerServiceName);
                 }
             }
         } else {
             foreach ($this->config['producers'] as $key => $producer) {
                 $definition = new Definition('%rabbitmq.fallback.class%');
-                $this->container->setDefinition(sprintf('rabbitmq.%s_producer', $key), $definition);
+                static::$container->setDefinition(sprintf('rabbitmq.%s_producer', $key), $definition);
             }
         }
     }
@@ -372,7 +385,7 @@ class Services
             }
 
             $name = sprintf('rabbitmq.%s_consumer', $key);
-            $this->container->setDefinition($name, $definition);
+            static::$container->setDefinition($name, $definition);
             $this->addDequeuerAwareCall($consumer['callback'], $name);
         }
     }
@@ -399,7 +412,7 @@ class Services
             }
             $definition->setPublic(true);
 
-            $this->container->setDefinition(sprintf('rabbitmq.%s_rpc', $key), $definition);
+            static::$container->setDefinition(sprintf('rabbitmq.%s_rpc', $key), $definition);
         }
     }
 
@@ -442,7 +455,7 @@ class Services
                 $definition->addMethodCall('setSerializer', array($server['serializer']));
             }
 
-            $this->container->setDefinition(sprintf('rabbitmq.%s_server', $key), $definition);
+            static::$container->setDefinition(sprintf('rabbitmq.%s_server', $key), $definition);
         }
     }
 
@@ -464,7 +477,7 @@ class Services
             $this->injectConnection($definition, $anon['connection']);
 
             $name = sprintf('rabbitmq.%s_anon', $key);
-            $this->container->setDefinition($name, $definition);
+            static::$container->setDefinition($name, $definition);
             $this->addDequeuerAwareCall($anon['callback'], $name);
         }
     }
@@ -528,7 +541,7 @@ class Services
                 $this->injectLogger($definition);
             }
 
-            $this->container->setDefinition(sprintf('rabbitmq.%s_batch', $key), $definition);
+            static::$container->setDefinition(sprintf('rabbitmq.%s_batch', $key), $definition);
         }
     }
 
@@ -557,7 +570,7 @@ class Services
         // Регистрация class как сервиса.
         $defCallBack = new Definition($class);
         $defCallBack->setPublic(true);
-        $this->container->setDefinition($class, $defCallBack);
+        static::$container->setDefinition($class, $defCallBack);
     }
 
     /**
@@ -623,11 +636,11 @@ class Services
      */
     private function addDequeuerAwareCall($callback, $name) : void
     {
-        if (!$this->container->has($callback)) {
+        if (!static::$container->has($callback)) {
             return;
         }
 
-        $callbackDefinition = $this->container->findDefinition($callback);
+        $callbackDefinition = static::$container->findDefinition($callback);
         if ($this->isDequeverAwareInterface($callbackDefinition->getClass())) {
             $callbackDefinition->addMethodCall('setDequeuer', array(new Reference($name)));
         }
