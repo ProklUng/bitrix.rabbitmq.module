@@ -19,7 +19,7 @@ class PurgeConsumerCommand extends ConsumerCommand
              ->setDescription('Purge a consumer\'s queue')
              ->addOption('no-confirmation', null, InputOption::VALUE_NONE, 'Whether it must be confirmed before purging');
 
-        $this->setName('bitrix-rabbitmq:purge');
+        $this->setName('rabbitmq:purge');
     }
 
     /**

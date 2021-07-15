@@ -12,7 +12,7 @@ class SetupFabricCommand extends BaseRabbitMqCommand
     protected function configure()
     {
         $this
-            ->setName('bitrix-rabbitmq:setup-fabric')
+            ->setName('rabbitmq:setup-fabric')
             ->setDescription('Sets up the Rabbit MQ fabric')
             ->addOption('debug', 'd', InputOption::VALUE_NONE, 'Enable Debugging')
         ;

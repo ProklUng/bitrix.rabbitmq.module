@@ -8,7 +8,7 @@ class ConsumerCommand extends BaseConsumerCommand
     {
         parent::configure();
         $this->setDescription('Executes a consumer');
-        $this->setName('bitrix-rabbitmq:consumer');
+        $this->setName('rabbitmq:consumer');
     }
 
     protected function getConsumerService()

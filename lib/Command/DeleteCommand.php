@@ -19,7 +19,7 @@ class DeleteCommand extends ConsumerCommand
              ->setDescription('Delete a consumer\'s queue')
              ->addOption('no-confirmation', null, InputOption::VALUE_NONE, 'Whether it must be confirmed before deleting');
 
-        $this->setName('bitrix-rabbitmq:delete');
+        $this->setName('rabbitmq:delete');
     }
 
     /**

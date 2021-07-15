@@ -3,8 +3,8 @@
 
 use Bitrix\Main\DB\ConnectionException;
 use Bitrix\Main\Loader;
+use ProklUng\ContainerBoilerplate\CLI\ConsoleCommandConfigurator;
 use Proklung\RabbitMq\Integration\CLI\CommandsSetup;
-use Proklung\RabbitMq\Integration\CLI\ConsoleCommandConfigurator;
 use Proklung\RabbitMq\Integration\DI\Services;
 use Symfony\Component\Console\Application;
 

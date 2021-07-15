@@ -17,7 +17,7 @@ class StdInProducerCommand extends BaseRabbitMqCommand
         parent::configure();
 
         $this
-            ->setName('bitrix-rabbitmq:stdin-producer')
+            ->setName('rabbitmq:stdin-producer')
             ->addArgument('name', InputArgument::REQUIRED, 'Producer Name')
             ->setDescription('Executes a producer that reads data from STDIN')
             ->addOption('route', 'r', InputOption::VALUE_OPTIONAL, 'Routing Key', '')

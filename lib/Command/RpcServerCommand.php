@@ -14,7 +14,7 @@ class RpcServerCommand extends BaseRabbitMqCommand
         parent::configure();
 
         $this
-            ->setName('bitrix-rabbitmq:rpc-server')
+            ->setName('rabbitmq:rpc-server')
             ->setDescription('Start an RPC server')
             ->addArgument('name', InputArgument::REQUIRED, 'Server Name')
             ->addOption('messages', 'm', InputOption::VALUE_OPTIONAL, 'Messages to consume', 0)
