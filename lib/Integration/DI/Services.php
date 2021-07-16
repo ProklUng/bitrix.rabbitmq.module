@@ -3,11 +3,10 @@
 namespace Proklung\RabbitMq\Integration\DI;
 
 use Bitrix\Main\Config\Configuration;
-use Closure;
 use Exception;
-use ProklUng\ContainerBoilerplate\CompilerContainer;
-use ProklUng\ContainerBoilerplate\Utils\BitrixSettingsDiAdapter;
-use Symfony\Component\DependencyInjection\Container;
+use ProklUng\ContainerBoilerplate\DI\AbstractServiceContainer;
+use ReflectionClass;
+use ReflectionException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Proklung\RabbitMq\RabbitMq\Binding;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -18,110 +17,48 @@ use Symfony\Component\DependencyInjection\Reference;
  * Class Services
  * @package Proklung\RabbitMq\Integration\DI
  */
-class Services
+class Services extends AbstractServiceContainer
 {
     /**
-     * @var array $config
+     * @var ContainerBuilder|null $container Контейнер.
      */
-    private $config;
+    protected static $container;
 
     /**
-     * @var array $parameters
+     * @var array $config Битриксовая конфигурация.
      */
-    private $parameters;
+    protected $config = [];
 
     /**
-     * @var array $services
+     * @var array $parameters Параметры битриксового сервис-локатора.
      */
-    private $services;
+    protected $parameters = [];
 
     /**
-     * @var ContainerBuilder $container Контейнер.
+     * @var array $services Сервисы битриксового сервис-локатора.
      */
-    private static $container;
+    protected $services = [];
 
     /**
-     * @var string $environment
+     * @var string $moduleId ID модуля (переопределяется наследником).
      */
-    private $environment;
-
-    /**
-     * @var boolean $debug Режим отладки.
-     */
-    private $debug;
+    protected $moduleId = 'proklung.rabbitmq';
 
     /**
      * Services constructor.
      */
     public function __construct()
     {
-        $this->debug = (bool)$_ENV['DEBUG'] ?? true;
-        $this->environment = $this->debug ? 'dev' : 'prod';
+        parent::__construct();
 
         $this->config = Configuration::getInstance()->get('rabbitmq') ?? [];
-        $this->parameters = Configuration::getInstance('proklung.rabbitmq')->get('parameters') ?? [];
-        $this->services = Configuration::getInstance('proklung.rabbitmq')->get('services') ?? [];
+        $this->parameters = Configuration::getInstance($this->moduleId)->get('parameters') ?? [];
+        $this->services = Configuration::getInstance($this->moduleId)->get('services') ?? [];
 
         // Инициализация параметров контейнера.
         $this->parameters['cache_path'] = $this->parameters['cache_path'] ?? '/bitrix/cache/proklung.rabbitmq';
         $this->parameters['container.dumper.inline_factories'] = $this->parameters['container.dumper.inline_factories'] ?? false;
         $this->parameters['compile_container_envs'] = (array)$this->parameters['compile_container_envs'];
-    }
-
-    /**
-     * Загрузка и инициализация контейнера.
-     *
-     * @return Container
-     * @throws Exception
-     */
-    public static function boot() : Container
-    {
-        $self = new static();
-
-        $self->load();
-
-        return $self->getContainer();
-    }
-
-    /**
-     * Alias boot для читаемости.
-     *
-     * @return Container
-     * @throws Exception
-     */
-    public static function getInstance() : Container
-    {
-        return static::boot();
-    }
-
-    /**
-     * @return void
-     * @throws Exception
-     */
-    public function load() : void
-    {
-        if (static::$container !== null) {
-            return;
-        }
-
-        $this->createContainer();
-        $compilerContainer = new CompilerContainer($_SERVER['DOCUMENT_ROOT']);
-        $compilerContainer->setModuleId('proklung.rabbitmq');
-
-        // Кэшировать контейнер?
-        if (!in_array($this->environment, $this->parameters['compile_container_envs'], true)) {
-            $this->initContainer();
-            return;
-        }
-
-        static::$container = $compilerContainer->cacheContainer(
-            static::$container,
-            $_SERVER['DOCUMENT_ROOT'] . $this->parameters['cache_path'],
-            'container.php',
-            $this->environment,
-            $this->debug,
-            Closure::fromCallable([$this, 'initContainer'])
-        );
     }
 
     /**
@@ -142,31 +79,6 @@ class Services
         $this->loadPartsHolder();
 
         static::$container->compile(false);
-    }
-
-    /**
-     * Экземпляр контейнера.
-     *
-     * @return Container
-     */
-    public function getContainer(): Container
-    {
-        return static::$container;
-    }
-
-    /**
-     * Создать пустой экземпляр контейнера.
-     *
-     * @return void
-     */
-    private function createContainer() : void
-    {
-        static::$container = new ContainerBuilder();
-        $adapter = new BitrixSettingsDiAdapter();
-
-        $adapter->importParameters(static::$container, $this->config);
-        $adapter->importParameters(static::$container, $this->parameters);
-        $adapter->importServices(static::$container, $this->services);
     }
 
     /**
@@ -635,6 +547,7 @@ class Services
      * @param string $name
      *
      * @return void
+     * @throws ReflectionException
      */
     private function addDequeuerAwareCall($callback, $name) : void
     {
@@ -648,18 +561,34 @@ class Services
         }
     }
 
+    /**
+     * @param Definition $definition
+     * @param mixed      $connectionName
+     *
+     * @return void
+     */
     private function injectConnection(Definition $definition, $connectionName)
     {
         $definition->addArgument(new Reference(sprintf('rabbitmq.connection.%s', $connectionName)));
     }
 
+    /**
+     * @param string $class
+     *
+     * @return boolean
+     *
+     * @throws ReflectionException
+     */
     private function isDequeverAwareInterface(string $class): bool
     {
-        $refClass = new \ReflectionClass($class);
+        $refClass = new ReflectionClass($class);
 
         return $refClass->implementsInterface('Proklung\RabbitMq\RabbitMq\DequeuerAwareInterface');
     }
 
+    /**
+     * @return array
+     */
     private function getDefaultExchangeOptions(): array
     {
         return [
@@ -670,6 +599,9 @@ class Services
         ];
     }
 
+    /**
+     * @return array
+     */
     private function getDefaultQueueOptions(): array
     {
         return [
