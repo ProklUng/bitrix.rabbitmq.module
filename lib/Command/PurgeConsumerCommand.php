@@ -26,7 +26,7 @@ class PurgeConsumerCommand extends ConsumerCommand
      * @param InputInterface $input
      * @param OutputInterface $output
      *
-     * @return void
+     * @return integer
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
@@ -44,12 +44,14 @@ class PurgeConsumerCommand extends ConsumerCommand
             if (!$this->getHelper('question')->ask($input, $output, $question)) {
                 $output->writeln('<error>Purging cancelled!</error>');
 
-                return;
+                return 1;
             }
         }
 
         $this->consumer = $this->getContainer()
             ->get(sprintf($this->getConsumerService(), $input->getArgument('name')));
         $this->consumer->purge($input->getArgument('name'));
+
+        return 0;
     }
 }

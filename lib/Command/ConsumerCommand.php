@@ -2,6 +2,10 @@
 
 namespace Proklung\RabbitMq\Command;
 
+/**
+ * Class ConsumerCommand
+ * @package Proklung\RabbitMq\Command
+ */
 class ConsumerCommand extends BaseConsumerCommand
 {
     protected function configure()

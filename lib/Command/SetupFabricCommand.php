@@ -9,6 +9,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class SetupFabricCommand extends BaseRabbitMqCommand
 {
+    /**
+     * @inheritdoc
+     */
     protected function configure()
     {
         $this
@@ -18,6 +21,9 @@ class SetupFabricCommand extends BaseRabbitMqCommand
         ;
     }
 
+    /**
+     * @inheritdoc
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         if (defined('AMQP_DEBUG') === false) {
@@ -37,5 +43,6 @@ class SetupFabricCommand extends BaseRabbitMqCommand
             }
         }
 
+        return 0;
     }
 }
